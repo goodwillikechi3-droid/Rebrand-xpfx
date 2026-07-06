@@ -1,0 +1,16 @@
+{
+  "provider": "node",
+  "install": {
+    "command": "npm install"
+  },
+  "build": {
+    "command": "npm run build"
+  },
+  "start": {
+    "command": "node dist/index.js"
+  },
+  "environment": {
+    "NODE_ENV": "production",
+    "PORT": "3000"
+  }
+}
