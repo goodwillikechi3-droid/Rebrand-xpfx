@@ -11,6 +11,7 @@ import path from 'path';
 import client from 'prom-client';
 
 const app = express();
+app.disable('x-powered-by');
 
 // ─── LOGGING ──────────────────────────────────────────────────────────────────
 app.use(pinoHttp({
