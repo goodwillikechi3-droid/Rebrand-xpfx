@@ -1,4 +1,34 @@
 [Unit]
+Description=XpressPro FX API service
+After=network.target
+
+[Service]
+# Optional environment file (create /etc/xpresspro.env with APP_HOME=/path/to/app)
+EnvironmentFile=-/etc/xpresspro.env
+# Working directory (falls back to /var/www/Rebranded-xpfx)
+WorkingDirectory=${APP_HOME:-/var/www/Rebranded-xpfx}
+# Exec the startup script which handles build + run for local/VPS
+ExecStart=/usr/bin/env bash -c "${APP_HOME:-/var/www/Rebranded-xpfx}/start.sh"
+Restart=always
+RestartSec=5
+User=www-data
+Group=www-data
+KillMode=control-group
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+
+# Notes:
+# 1. Copy this file to /etc/systemd/system/xpresspro.service and create
+#    an environment file at /etc/xpresspro.env with APP_HOME pointing at the
+#    application directory if you do not want to edit the unit.
+# 2. Example /etc/xpresspro.env:
+#    APP_HOME=/home/ubuntu/Rebranded-xpfx
+# 3. Enable and start:
+#    sudo systemctl daemon-reload
+#    sudo systemctl enable xpresspro
+#    sudo systemctl start xpresspro[Unit]
 Description=XpressPro FX API Server
 After=network-online.target
 Wants=network-online.target
