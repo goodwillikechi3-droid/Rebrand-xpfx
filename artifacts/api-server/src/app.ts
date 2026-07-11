@@ -137,11 +137,21 @@ app.get('/api/healthz', (_req: Request, res: Response) => {
 });
 
 // ─── STATIC FILE SERVING ──────────────────────────────────────────────────────
-const candidateStaticPaths = [
-  path.resolve(__dirname, '../../public'),
-  path.resolve(__dirname, '../../artifacts/nextrade/dist/public'),
-  path.resolve(__dirname, '../../artifacts/nextrade/public')
+const candidateRoots = [
+  process.cwd(),
+  path.resolve(__dirname, '../../..'),
+  path.resolve(__dirname, '../../../../../'),
+  path.resolve(__dirname, '..'),
+  path.resolve(__dirname)
 ].filter((value, index, array) => array.indexOf(value) === index);
+
+const candidateStaticPaths = candidateRoots
+  .flatMap((root) => [
+    path.join(root, 'artifacts', 'nextrade', 'dist', 'public'),
+    path.join(root, 'artifacts', 'nextrade', 'public'),
+    path.join(root, 'public')
+  ])
+  .filter((value, index, array) => array.indexOf(value) === index);
 
 const frontendStaticPath = candidateStaticPaths.find((candidate) => fs.existsSync(candidate)) || candidateStaticPaths[0];
 const frontendIndexPath = path.join(frontendStaticPath, 'index.html');
