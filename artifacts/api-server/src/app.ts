@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import rateLimit from 'express-rate-limit';
 import pinoHttp from 'pino-http';
+import fs from 'fs';
 import path from 'path';
 
 const app = express();
@@ -136,8 +137,16 @@ app.get('/api/healthz', (_req: Request, res: Response) => {
 });
 
 // ─── STATIC FILE SERVING ──────────────────────────────────────────────────────
-const staticPath = path.join(__dirname, '../../public');
-app.use(express.static(staticPath, { index: false }));
+const candidateStaticPaths = [
+  path.resolve(__dirname, '../../public'),
+  path.resolve(__dirname, '../../artifacts/nextrade/dist/public'),
+  path.resolve(__dirname, '../../artifacts/nextrade/public')
+].filter((value, index, array) => array.indexOf(value) === index);
+
+const frontendStaticPath = candidateStaticPaths.find((candidate) => fs.existsSync(candidate)) || candidateStaticPaths[0];
+const frontendIndexPath = path.join(frontendStaticPath, 'index.html');
+
+app.use(express.static(frontendStaticPath, { index: false }));
 
 // ─── PLATFORM GATE ────────────────────────────────────────────────────────────
 app.use('/api/*', (req: Request, res: Response, next: NextFunction) => {
@@ -165,8 +174,16 @@ app.use('/api/*', (req: Request, res: Response, next: NextFunction) => {
 // app.use('/api/live-chat', liveChatRouter);
 
 // ─── SPA FALLBACK ─────────────────────────────────────────────────────────────
-app.get('*', (_req: Request, res: Response) => {
-  res.sendFile(path.join(__dirname, '../../public', 'index.html'));
+app.get('*', (req: Request, res: Response) => {
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ success: false, message: 'Route not found.' });
+  }
+
+  if (fs.existsSync(frontendIndexPath)) {
+    return res.sendFile(frontendIndexPath);
+  }
+
+  return res.status(404).send('Frontend build not found. Build the website app first.');
 });
 
 // ─── GLOBAL ERROR HANDLER ─────────────────────────────────────────────────────
