@@ -62,7 +62,8 @@ fi
 # Install dependencies
 echo ""
 echo "[install] Running npm ci with development dependencies..."
-NPM_CONFIG_PRODUCTION=false npm ci --prefer-offline 2>&1 | tail -5
+# Ensure devDependencies (like TypeScript) are available when running locally or on a VPS
+NPM_CONFIG_PRODUCTION=false npm ci --prefer-offline --no-audit --no-fund 2>&1 | tail -10
 
 # Build API server
 echo ""
