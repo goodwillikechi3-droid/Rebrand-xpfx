@@ -167,6 +167,56 @@ for (const pkgPath of packageJsonFiles) {
 }
 console.log(`[predeploy] Checked ${packageJsonFiles.length} package.json files.`);
 
+// Check for pnpm lock files and enforce npm-only
+console.log("[predeploy] Checking for pnpm artifacts and packageManager declarations...");
+
+const pnpmLockFiles = ["pnpm-lock.yaml", "pnpm-workspace.yaml"];
+const foundPnpmLocks = pnpmLockFiles.filter((f) => rootEntries.includes(f));
+if (foundPnpmLocks.length > 0) {
+  fail(
+    `pnpm lock files found at repo root: ${foundPnpmLocks.join(", ")}\n` +
+      `  This project uses npm workspaces exclusively. Remove these files and run 'npm install' instead.`
+  );
+}
+
+// Check for packageManager declarations in workspace manifests (enforce npm-only)
+for (const pkgPath of packageJsonFiles) {
+  if (pkgPath === join(ROOT, "package.json")) continue; // root is allowed
+  let raw;
+  try {
+    raw = readFileSync(pkgPath, "utf8");
+    const parsed = JSON.parse(raw);
+    if (parsed.packageManager && parsed.packageManager.includes("pnpm")) {
+      fail(
+        `packageManager "pnpm" declared in ${pkgPath}.\n` +
+          `  Remove the packageManager field; this project uses npm workspaces exclusively.`
+      );
+    }
+  } catch {
+    // already validated above
+  }
+}
+
+// Check for invalid _comment fields in JSON config files
+console.log("[predeploy] Checking for invalid JSON comment fields...");
+
+const jsonConfigFiles = ["vercel.json", "railway.json", "render.yaml"];
+for (const configFile of jsonConfigFiles) {
+  const configPath = join(ROOT, configFile);
+  try {
+    const content = readFileSync(configPath, "utf8");
+    const parsed = JSON.parse(content);
+    if (parsed._comment || typeof parsed._comment === "string") {
+      fail(
+        `Invalid JSON field "_comment" in ${configFile}.\n` +
+          `  JSON does not support comments. Remove the _comment field.`
+      );
+    }
+  } catch (e) {
+    // file doesn't exist or is malformed — already validated
+  }
+}
+
 // ---------------------------------------------------------------------------
 // 3. Check for conflicting platform build configs
 // ---------------------------------------------------------------------------
@@ -207,6 +257,85 @@ if (foundKnown.length > 0) {
   console.log(
     `[predeploy] Platform configs present: ${foundKnown.join(", ")}`
   );
+}
+
+// ---------------------------------------------------------------------------
+// 3.5 Reject pnpm artifacts and JSON `_comment` fields
+// ---------------------------------------------------------------------------
+console.log("[predeploy] Checking for pnpm artifacts and invalid JSON comments...");
+
+// Fail if common pnpm lock/workspace files exist at repo root
+const pnpmFiles = ["pnpm-lock.yaml", "pnpm-workspace.yaml"];
+const foundPnpm = pnpmFiles.filter((f) => rootEntries.includes(f));
+if (foundPnpm.length > 0) {
+  fail(
+    `pnpm artifacts detected at repo root: ${foundPnpm.join(", ")}.\n` +
+      `  This repository enforces npm-only. Remove these files and use npm workspaces.`
+  );
+}
+
+// Fail if any package.json declares pnpm in `packageManager` or uses `pnpm` in scripts
+for (const pkgPath of packageJsonFiles) {
+  let raw;
+  try {
+    raw = readFileSync(pkgPath, "utf8");
+  } catch (e) {
+    warn(`Could not read ${pkgPath} for pnpm check: ${e.message}`);
+    continue;
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed.packageManager === "string" && /pnpm/i.test(parsed.packageManager)) {
+      fail(`packageManager set to pnpm in ${pkgPath} — remove or change to npm.`);
+    }
+    const scripts = parsed.scripts ?? {};
+    for (const [k, v] of Object.entries(scripts)) {
+      if (typeof v === "string" && /\bpnpm\b/.test(v)) {
+        fail(`Script uses pnpm in ${pkgPath} -> ${k}: ${v}`);
+      }
+    }
+  } catch (e) {
+    // already validated earlier — ignore parse failures here
+  }
+}
+
+// Check all JSON files for `_comment` keys which cause invalid JSON on strict parsers
+function findJsonFiles(dir, results = []) {
+  let entries;
+  try {
+    entries = readdirSync(dir);
+  } catch {
+    return results;
+  }
+  for (const entry of entries) {
+    if (entry === "node_modules" || entry === ".git" || entry === "dist") continue;
+    const full = join(dir, entry);
+    let stat;
+    try {
+      stat = statSync(full);
+    } catch {
+      continue;
+    }
+    if (stat.isDirectory()) {
+      findJsonFiles(full, results);
+    } else if (entry.endsWith('.json')) {
+      results.push(full);
+    }
+  }
+  return results;
+}
+
+const jsonFiles = findJsonFiles(ROOT);
+for (const jf of jsonFiles) {
+  let raw;
+  try {
+    raw = readFileSync(jf, 'utf8');
+  } catch {
+    continue;
+  }
+  if (/"_comment"\s*:/.test(raw)) {
+    fail(`Invalid JSON comment-like key `_comment` found in ${jf}. Remove it to ensure valid JSON.`);
+  }
 }
 
 // ---------------------------------------------------------------------------
