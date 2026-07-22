@@ -11,7 +11,6 @@ COPY artifacts/admin-portal/package.json ./artifacts/admin-portal/package.json
 COPY lib/api-client-react/package.json ./lib/api-client-react/package.json
 COPY lib/api-zod/package.json ./lib/api-zod/package.json
 COPY lib/db/package.json ./lib/db/package.json
-COPY artifacts/db/package.json ./artifacts/db/package.json
 COPY scripts ./scripts
 RUN npm ci --no-audit --no-fund
 
