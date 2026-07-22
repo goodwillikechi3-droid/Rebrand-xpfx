@@ -21,6 +21,7 @@
     "generate:pitch-deck": "node scripts/generate-pitch-deck.mjs",
     "postinstall": "node scripts/generate-secrets.mjs && node scripts/fix-date-fns.mjs && prisma generate",
     "predeploy": "node scripts/predeploy.mjs --skip-env-check",
+    "check:build-scripts": "node scripts/check-build-scripts.mjs",
     "build": "npm run build --workspace=artifacts/api-server && npm run build --workspace=artifacts/nextrade && npm run build --workspace=artifacts/admin-portal && npm run build --workspace=lib/api-zod",
     "build:all": "npm run build",
     "start": "npm run build && node artifacts/api-server/dist/index.mjs",

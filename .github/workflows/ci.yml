@@ -30,6 +30,9 @@ jobs:
       - name: Run predeploy checks
         run: node scripts/predeploy.mjs --skip-env-check
 
+      - name: Check custom build scripts
+        run: node scripts/check-build-scripts.mjs
+
       - name: Security audit
         run: npm audit --production
 
