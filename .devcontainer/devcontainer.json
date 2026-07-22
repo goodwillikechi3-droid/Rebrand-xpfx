@@ -7,7 +7,8 @@
   "portsAttributes": {
     "5000": { "label": "XpressPro FX API", "visibility": "public" },
     "5173": { "label": "XpressPro FX Admin", "visibility": "public" },
-    "5174": { "label": "XpressPro FX Dashboard", "visibility": "public" }
+    "5174": { "label": "XpressPro FX Dashboard", "visibility": "public" },
+    "5175": { "label": "XpressPro FX Mockup", "visibility": "public" }
   },
   "remoteEnv": {
     "NODE_ENV": "development"
