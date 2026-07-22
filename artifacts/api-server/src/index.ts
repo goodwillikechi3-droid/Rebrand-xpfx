@@ -19,7 +19,7 @@ let prisma: PrismaClientType | null = null;
 
 function normalizePort(value: string | number | undefined) {
   const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_PORT;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_PORT;
 }
 
 async function initDatabase() {
@@ -48,9 +48,11 @@ async function bootstrap() {
     const resolvedPort = normalizePort(process.env.PORT || PORT);
 
     server.listen(resolvedPort, '0.0.0.0', () => {
-      console.log(`[SERVER] XpressPro FX API running on port ${resolvedPort}`);
+      const address = server.address();
+      const boundPort = typeof address === 'object' && address ? address.port : resolvedPort;
+      console.log(`[SERVER] XpressPro FX API running on port ${boundPort}`);
       console.log(`[SERVER] Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`[SERVER] Health: http://0.0.0.0:${resolvedPort}/healthz`);
+      console.log(`[SERVER] Health: http://0.0.0.0:${boundPort}/healthz`);
     });
   } catch (error) {
     console.error('[SERVER] Failed to start:', error);

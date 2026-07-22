@@ -11,6 +11,8 @@ import { randomBytes } from 'crypto';
 import client from 'prom-client';
 import apiRoutes from './routes/index';
 import { attachSession } from './lib/session';
+import { getDb } from './lib/db-client';
+import { sql } from 'drizzle-orm';
 
 const app = express();
 app.disable('x-powered-by');
@@ -19,6 +21,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   const requestId = req.get('x-request-id') || randomBytes(8).toString('hex');
   req.headers['x-request-id'] = requestId;
   res.setHeader('x-request-id', requestId);
+  console.log('[debug] incoming', req.method, req.path);
   next();
 });
 
@@ -203,6 +206,38 @@ app.get('/healthz', (_req: Request, res: Response) => {
   res.status(200).json(buildHealthPayload({ checks: ['process'] }));
 });
 
+async function runDbProbe() {
+  const db = getDb();
+  if (!db) {
+    return { status: 'ok', database: 'disabled' as const };
+  }
+
+  const timeoutMs = Number(process.env.DB_HEALTH_TIMEOUT_MS || 3000);
+  const probe = db.execute(sql`select 1`);
+  const timeout = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error(`Database probe timed out after ${timeoutMs}ms`)), timeoutMs);
+  });
+
+  await Promise.race([probe, timeout]);
+  return { status: 'ok', database: 'connected' as const };
+}
+
+async function dbHealthHandler(_req: Request, res: Response) {
+  try {
+    const result = await runDbProbe();
+    return res.status(200).json(result);
+  } catch (err) {
+    return res.status(503).json({
+      status: 'degraded',
+      database: 'unreachable',
+      error: (err as Error).message,
+    });
+  }
+}
+
+app.get('/healthz/db', dbHealthHandler);
+app.get('/api/healthz/db', dbHealthHandler);
+
 app.get('/livez', (_req: Request, res: Response) => {
   res.status(200).json(buildHealthPayload({ checks: ['process'] }));
 });
@@ -220,11 +255,9 @@ async function readinessHandler(_req: Request, res: Response) {
   if (!process.env.DATABASE_URL) {
     return res.status(200).json({ ready: true, reason: 'no-db-config' });
   }
+
   try {
-    const { PrismaClient } = await import('@prisma/client');
-    const client = new PrismaClient();
-    await client.$connect();
-    await client.$disconnect();
+    await runDbProbe();
     return res.status(200).json({ ready: true, reason: 'database-ok' });
   } catch (err) {
     return res.status(503).json({ ready: false, error: String(err) });
